@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace RedisReplication.exceptions
+namespace RedisReplication.Exceptions
 {
     public class RedisParserException : Exception
     {

@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using RedisReplication.exceptions;
+using RedisReplication.Exceptions;
+using RedisReplication.Utils;
 
 namespace RedisReplication
 {
@@ -32,6 +33,13 @@ namespace RedisReplication
         private const string REDIS = "REDIS";
 
         private const byte LENGTH_MASK = byte.MaxValue >> 2;
+        private const byte LENGTH_00 = 1 << 7;
+        private const byte LENGTH_01 = LENGTH_00 | 1;
+
+        private const byte STRING_00 = 3 << 6; //11000000
+        private const byte STRING_01 = STRING_00 | 1; //11000001
+        private const byte STRING_10 = STRING_00 | 2; //11000010
+        private const byte STRING_11 = STRING_00 | 3; //11000011
 
         private Stream input;
 
@@ -42,20 +50,39 @@ namespace RedisReplication
 
         private string ReadString()
         {
-            var strByteCounts = ReadLength();
-            switch (strByteCounts)
+            var length = ReadLength(out var encoded);
+            if (encoded)
             {
-                case 1:
-                case 2:
-                case 4:
-                    return input.ReadInt((int) strByteCounts, true).ToString();
-                default:
-                    throw new NotImplementedException();
+                switch (length)
+                {
+                    case STRING_00:
+                        return ((sbyte) input.ReadByte()).ToString();
+                    case STRING_01:
+                        return input.ReadInt16(isBigEndian: true).ToString();
+                    case STRING_10:
+                        return input.ReadInt(isBigEndian: true).ToString();
+                    case STRING_11:
+                        int compressLength = (int) ReadLength(out encoded),
+                            originalLength = (int) ReadLength(out encoded);
+                        return ByteUtils.RequireBytes(compressLength, sources =>
+                        {
+                            input.ReadFullBytes(sources);
+                            return ByteUtils.RequireBytes(originalLength, target =>
+                            {
+                                input.ReadFullBytes(target);
+                                Lzf.Decode(sources, target);
+                                return Encoding.UTF8.GetString(target);
+                            });
+                        });
+                }
             }
+
+            return ByteUtils.RequireBytes((int) length, bytes => Encoding.UTF8.GetString(bytes));
         }
 
-        private uint ReadLength()
+        private long ReadLength(out bool isEncoded)
         {
+            isEncoded = false;
             var flag = input.ReadByte();
             switch (flag >> 6)
             {
@@ -64,27 +91,21 @@ namespace RedisReplication
                 case 1:
                     return ((uint) flag & LENGTH_MASK) << 8 | (uint) input.ReadByte();
                 case 2:
-                    return input.ReadInt64(isBigEndian: true);
-                case 3:
-                    flag = flag * LENGTH_MASK;
                     switch (flag)
                     {
-                        case 0:
-                            return 1;
-                        case 1:
-                            return 2;
-                        case 2:
-                            return 4;
-                        case 4:
-                            var length = ReadLength();
-                            ReadLength();
-                            return length;
+                        case LENGTH_00:
+                            return input.ReadUInt32(isBigEndian: true);
+                        case LENGTH_01:
+                            return input.ReadInt64(isBigEndian: true);
                     }
 
-                    throw new RedisParserException();
-                default:
-                    throw new RedisParserException();
+                    break;
+                case 3:
+                    isEncoded = true;
+                    return flag;
             }
+
+            throw new RedisParserException();
         }
 
         public void StartParse()
@@ -119,7 +140,7 @@ namespace RedisReplication
                     case EXPIRETIME:
                         break;
                     case SELECTDB:
-                        dbNum = (int) ReadLength();
+//                        dbNum = (int) ReadLength();
                         break;
                     case EOF:
                         end = true;

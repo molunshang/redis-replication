@@ -2,6 +2,7 @@
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
+using RedisReplication.Utils;
 
 namespace RedisReplication
 {
@@ -9,28 +10,18 @@ namespace RedisReplication
     {
         static void Main(string[] args)
         {
-            Console.WriteLine(Encoding.UTF8.GetByteCount("123"));
-            Console.WriteLine(Encoding.UTF8.GetString(new[] {(byte) 123}));
-            var sb = new StringBuilder();
-            while (true)
-            {
-                sb.Append(Guid.NewGuid());
-                if (Encoding.UTF8.GetByteCount(sb.ToString()) > 255)
-                {
-                    Console.WriteLine(sb);
-                    Console.WriteLine(Encoding.UTF8.GetByteCount(sb.ToString()));
-                    break;
-                }
-            }
-
+            var bytes = File.ReadAllBytes("t.txt");
+            var target = new byte[73];
+            Lzf.Decode(bytes, target);
+            Console.WriteLine(Encoding.UTF8.GetString(target));
 //            var memory = new MemoryStream(Encoding.UTF8.GetBytes(sb.ToString()));
 
-            var redisStream = new RedisStream(File.OpenRead("rdb.rdb"));
-            while (true)
-            {
-                var bytes = redisStream.ReadLineBytes();
-                Console.WriteLine(Encoding.UTF8.GetString(bytes));
-            }
+//            var redisStream = new RedisStream(File.OpenRead("rdb.rdb"));
+//            while (true)
+//            {
+//                var bytes = redisStream.ReadLineBytes();
+//                Console.WriteLine(Encoding.UTF8.GetString(bytes));
+//            }
 
 //            var rdbStream = new FileStream("rdb.rdb", FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
 //            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
