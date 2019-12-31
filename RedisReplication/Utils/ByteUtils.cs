@@ -21,22 +21,79 @@ namespace RedisReplication.Utils
             }
         }
 
-        public static int ToInt(this byte[] bytes, bool isBigEndian = false)
+        public static int ToInt(this byte[] bytes, int length = 4, bool isBigEndian = false)
         {
-            return (isBigEndian ? bytes.Reverse() : bytes).Aggregate((int) bytes[isBigEndian ? bytes.Length - 1 : 0],
-                (current, b) => current << 8 | b);
+            int start, end, step;
+            if (isBigEndian)
+            {
+                start = length - 1;
+                end = 0;
+                step = -1;
+            }
+            else
+            {
+                start = 0;
+                end = length - 1;
+                step = 1;
+            }
+
+            int result = bytes[start];
+            for (; start <= end; start += step)
+            {
+                result = result << 8 | bytes[start];
+            }
+
+            return result;
         }
 
-        public static long ToInt64(this byte[] bytes, bool isBigEndian = false)
+        public static long ToInt64(this byte[] bytes, int length = 8, bool isBigEndian = false)
         {
-            return (isBigEndian ? bytes.Reverse() : bytes).Aggregate((long) bytes[isBigEndian ? bytes.Length - 1 : 0],
-                (current, b) => current << 8 | b);
+            int start, end, step;
+            if (isBigEndian)
+            {
+                start = length - 1;
+                end = 0;
+                step = -1;
+            }
+            else
+            {
+                start = 0;
+                end = length - 1;
+                step = 1;
+            }
+
+            long result = bytes[start];
+            for (; start <= end; start += step)
+            {
+                result = result << 8 | bytes[start];
+            }
+
+            return result;
         }
 
-        public static uint ToUInt32(this byte[] bytes, bool isBigEndian = false)
+        public static uint ToUInt32(this byte[] bytes, int length = 4, bool isBigEndian = false)
         {
-            return (isBigEndian ? bytes.Reverse() : bytes).Aggregate((uint) bytes[isBigEndian ? bytes.Length - 1 : 0],
-                (current, b) => current << 8 | b);
+            int start, end, step;
+            if (isBigEndian)
+            {
+                start = length - 1;
+                end = 0;
+                step = -1;
+            }
+            else
+            {
+                start = 0;
+                end = length - 1;
+                step = 1;
+            }
+
+            uint result = bytes[start];
+            for (; start <= end; start += step)
+            {
+                result = result << 8 | bytes[start];
+            }
+
+            return result;
         }
     }
 }

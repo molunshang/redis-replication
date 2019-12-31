@@ -66,18 +66,23 @@ namespace RedisReplication
                             originalLength = (int) ReadLength(out encoded);
                         return ByteUtils.RequireBytes(compressLength, sources =>
                         {
-                            input.ReadFullBytes(sources);
+                            input.ReadBytes(sources, compressLength);
                             return ByteUtils.RequireBytes(originalLength, target =>
                             {
-                                input.ReadFullBytes(target);
+                                input.ReadBytes(target, originalLength);
                                 Lzf.Decode(sources, target);
-                                return Encoding.UTF8.GetString(target);
+                                return Encoding.UTF8.GetString(target, 0, originalLength);
                             });
                         });
                 }
             }
 
-            return ByteUtils.RequireBytes((int) length, bytes => Encoding.UTF8.GetString(bytes));
+            var len = (int) length;
+            return ByteUtils.RequireBytes(len, bytes =>
+            {
+                input.ReadBytes(bytes, len);
+                return Encoding.UTF8.GetString(bytes, 0, len);
+            });
         }
 
         private long ReadLength(out bool isEncoded)
@@ -127,20 +132,24 @@ namespace RedisReplication
                 switch (opcode)
                 {
                     case MODULE_AUX:
-                        auxDic.Add(ReadString(), ReadString());
+                    case IDLE:
                         break;
                     case FREQ:
                         break;
                     case AUX:
-                        break;
-                    case RESIZEDB:
-                        break;
                     case EXPIRETIME_MS:
+                        auxDic.Add("expiretime-ms", input.ReadInt64().ToString());
                         break;
                     case EXPIRETIME:
+                        auxDic.Add("expiretime-s", input.ReadInt().ToString());
                         break;
                     case SELECTDB:
-//                        dbNum = (int) ReadLength();
+                        dbNum = (int) ReadLength(out _);
+                        auxDic.Add("db", dbNum.ToString());
+                        break;
+                    case RESIZEDB:
+                        auxDic.Add("db_size", ReadLength(out _).ToString());
+                        auxDic.Add("expires_size", ReadLength(out _).ToString());
                         break;
                     case EOF:
                         end = true;

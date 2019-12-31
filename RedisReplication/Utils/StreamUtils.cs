@@ -5,19 +5,23 @@ namespace RedisReplication.Utils
 {
     public static class StreamUtils
     {
-        public static void ReadFullBytes(this Stream stream, byte[] bytes)
+        public static void ReadBytes(this Stream stream, byte[] bytes, int num = -1)
         {
-            var readNum = 0;
-            while (readNum < bytes.Length)
+            if (num <= 0)
             {
-                readNum += stream.Read(bytes, readNum, bytes.Length - readNum);
+                num = bytes.Length;
+            }
+            var readNum = 0;
+            while (readNum < num)
+            {
+                readNum += stream.Read(bytes, readNum, num - readNum);
             }
         }
 
         public static string ReadString(this Stream stream, int size)
         {
             var bytes = new byte[size];
-            ReadFullBytes(stream, bytes);
+            ReadBytes(stream, bytes);
             return Encoding.UTF8.GetString(bytes);
         }
 
@@ -25,8 +29,8 @@ namespace RedisReplication.Utils
         {
             return ByteUtils.RequireBytes(size, bytes =>
             {
-                stream.ReadFullBytes(bytes);
-                return ByteUtils.ToInt(bytes, isBigEndian);
+                stream.ReadBytes(bytes,size);
+                return bytes.ToInt(isBigEndian:isBigEndian);
             });
         }
 
@@ -34,7 +38,7 @@ namespace RedisReplication.Utils
         {
             return ByteUtils.RequireBytes(size, bytes =>
             {
-                stream.ReadFullBytes(bytes);
+                stream.ReadBytes(bytes);
                 return (short) (isBigEndian ? (short) bytes[0] << 8 | bytes[1] : (short) bytes[1] << 8 | bytes[0]);
             });
         }
@@ -43,8 +47,8 @@ namespace RedisReplication.Utils
         {
             return ByteUtils.RequireBytes(size, bytes =>
             {
-                stream.ReadFullBytes(bytes);
-                return ByteUtils.ToInt64(bytes, isBigEndian);
+                stream.ReadBytes(bytes);
+                return bytes.ToInt64(isBigEndian:isBigEndian);
             });
         }
 
@@ -52,8 +56,8 @@ namespace RedisReplication.Utils
         {
             return ByteUtils.RequireBytes(size, bytes =>
             {
-                stream.ReadFullBytes(bytes);
-                return ByteUtils.ToUInt32(bytes, isBigEndian);
+                stream.ReadBytes(bytes);
+                return bytes.ToUInt32(isBigEndian:isBigEndian);
             });
         }
     }
